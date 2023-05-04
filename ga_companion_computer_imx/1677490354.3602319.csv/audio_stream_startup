@@ -1,0 +1,15 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:       audio_stream_startup
+# Required-Start: $network $remote_fs $syslog
+# Required-Stop:  $network $remote_fs $syslog
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+# Description:    Audio_stream_start
+### END INIT INFO
+
+sleep 10
+
+/usr/bin/gst-launch-1.0 udpsrc port=5555 caps="application/x-rtp" ! queue ! rtppcmudepay ! mulawdec ! audioconvert ! alsasink sync=false
+
+exit 0

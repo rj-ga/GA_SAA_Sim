@@ -1,0 +1,8 @@
+f = open("/home/pi/GA_IIT_Bombay/ga_companion_computer_imx/util/stupid.txt","r")
+stupidx = f.readline().strip()
+stupidy = f.readline().strip()
+stupidz = f.readline().strip()
+f.close()
+print('x',stupidx)
+print('y',stupidy)
+print('z',stupidz)

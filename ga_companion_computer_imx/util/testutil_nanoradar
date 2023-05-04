@@ -1,0 +1,137 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jul  8 14:07:56 2020
+
+@author: Sachchit Vekaria
+@Organization: General Aeronautics Pvt Ltd
+"""
+
+# import necessary modules
+import time
+from util.gacommonutil import CompanionComputer, mavutil
+import threading
+import logging
+import can
+import os
+import math
+import can
+import time
+import subprocess
+
+
+class TestCompanionComputer(CompanionComputer):
+    def __init__(self, sitlType):
+        # Initialize super class
+        super().__init__(sitlType)
+        
+        # Threading Lock for TestCompanionComputer Class
+        self.lock = threading.Lock()
+        self.handleRecievedMsgThread = None
+        initialise_can()
+        candump_process = subprocess.Popen(['candump','can0'],stdout=subprocess.PIPE)
+        b=[]
+        start_time = time.time()
+        csv_name = str(time.ctime())+'.csv'
+        f = open(csv_name,'w')
+    
+
+
+    def init(self):
+        super().init()
+        
+        # set data stream rate
+        self.set_data_stream()
+        
+        # start our recieving message handling loop
+        self.handleRecievedMsgThread = threading.Thread(target=self.handle_recieved_message)
+        self.handleRecievedMsgThread.start()
+        print('seleeping')
+        time.sleep(10)
+        t1 = threading.Thread(target=self.nanoradar)#/*/* returns a list in self.raw_data
+        #stores data to self.lidar.raw_data to 64 elements ordered.
+        t1.start() #/*/*check
+        
+            
+
+      
+       
+    def nanoradar(self):
+        output = candump_process.stdout.readline()
+        if not output:
+            break
+        output = output.decode().strip()
+        data = output.split(' ')
+        
+        if data[2]=='60B':
+            b = data[7:]
+    #        b = ['30','54','6C','11','80','65','80','A2']
+            for i in range(len(b)):
+                b[i] = int(b[i],16)
+            obj_id = b[0]
+            obj_radial_distance = (b[1]*32+(b[2]>>3))*0.2 - 500        
+            obj_lateral_range = ((b[2]&7)*256 + b[3])*0.2-204.6
+            obj_radial_speed = (b[4]*4+(b[5]>>6))*0.25-128
+            obj_lateral_speed = ((b[5]&63)*8+(b[6]>>5))*0.25-64
+            obj_rcs = b[7]*0.5-64
+            obj_y_dis = (b[1]*32+math.floor(b[2])/8)*0.2-500
+            obj_x_dis = ((b[2]%8)*256+b[3])*0.2-204.6
+            csv_line = str(time.ctime())+','+str(round(obj_x_dis,1))+','+str(round(obj_y_dis,1))+','+str(round(obj_lateral_range,1))+','+str(round(obj_radial_distance,1))
+            #writer.writerow(csv_line)
+            f.write(csv_line+'\n') 
+            print(obj_id,obj_lateral_range,obj_radial_distance,obj_x_dis,obj_y_dis)
+            print('wrote a line')
+        else:
+            print()
+            print("X,Y,obj_lateral_range")     
+        
+
+
+    
+
+
+
+
+
+    def set_data_stream(self):
+        # data rate of more than 100 Hz is not possible as recieving loop is set to run at interval of 0.01 sec
+        # don't change that as it affects other vehicles as well
+    
+        # request data to be sent at the given rate
+        # arguments are (target_system, target_component, stream_type, frequency in Hz, stop(0) or start(1))
+    
+        # stop data which are coming automatically to stop recieving unnecessary messeges
+        self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 4, 0))
+
+
+        #self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 1, 1))
+        #self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_RAW_SENSORS, 1, 1))
+        self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_EXTENDED_STATUS, 2, 1))
+        self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_RC_CHANNELS, 2, 1))
+        #self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_RAW_CONTROLLER, 1, 1))
+        self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_POSITION, 5, 1))
+        #self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_EXTRA1, 1, 1))
+        #self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_EXTRA2, 1, 1))
+        self.add_new_message_to_sending_queue(mavutil.mavlink.MAVLink_request_data_stream_message(self.mavlinkInterface.mavConnection.target_system, self.mavlinkInterface.mavConnection.target_component, mavutil.mavlink.MAV_DATA_STREAM_EXTRA3, 2, 1))
+    
+        logging.info("Stream Rate have been set")
+    
+    def handle_recieved_message(self):
+        while True:
+            if self.killAllThread.is_set():
+                break
+            recievedMsg = self.get_new_message_from_recieving_queue()
+            if recievedMsg is not None:
+                super().handle_recieved_message(recievedMsg)
+            else:
+                time.sleep(0.01)
+            
+    def kill_all_threads(self):
+        logging.info("TestCompanionComputer killing all threads")
+        super().kill_all_threads()
+#        self.killAllThread.set()
+#        
+#        for task in self.scheduledTaskList:
+#            task.stop()
+#        
+        self.handleRecievedMsgThread.join()
+        logging.info("TestCompanionComputer joined all threads")

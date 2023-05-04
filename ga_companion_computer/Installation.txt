@@ -1,0 +1,88 @@
+# Creating copy of the SD Card
+sudo cp ./.Xauthority /root/
+sudo dbus-launch piclone
+
+# Settings for connections
+1. Proper static IP in /etc/dhcpcd.conf
+2. Wifi connection setting in /etc/wpa-supplicant/wpa-supplicant.conf
+
+# Putting process at boot
+1. Create script file in /etc/init.d/ folder. Don't use .sh extension
+2. Use reference scripts in init.d
+3. update-rc.d service_name defaults
+4. update-rc.d -f apache2 remove
+Other commands to check the process
+1. grep -nrI Default-Start /etc/init.d
+2. sudo service --status-all
+
+# Changing permission
+chmod u=rwx,g=rx,o=rx serial_to_tcp
+
+# Wifi Name change
+sudo nano /etc/hostapd/hostapd.conf
+
+# USB identification
+To know kernels
+udevadm info -a -p $(udevadm info -q path -n /dev/ttyUSB1)
+change in /etc/udev/rules.d/99-usb-serial.rules
+SUBSYSTEM=="tty",ATTRS{idVendor}=="067b",ATTRS{idProduct}=="2303",SYMLINK+="pixhawk" 
+SUBSYSTEM=="tty",ATTRS{idVendor}=="12d1",ATTRS{idProduct}=="1506",KERNELS=="1-1.2.1",SYMLINK+="dongle1"
+To check,
+ls -l /dev/pixhawk
+
+# Upload
+1. Create folder pymavlink on Desktop
+2. Upload pymavlink_main.py and util folder into that folder
+3. Upload gst-rpicamsrc on Desktop from Submodules
+4. Upload gst-rtsp-server on Desktop from Submodules
+
+# for telemetry
+sudo apt-get install screen python-wxgtk2.8 python-matplotlib python-opencv python-pip python-numpy python-dev libxml2-dev libxslt-dev python-lxml
+sudo pip install future
+sudo pip install pymavlink
+sudo pip install mavproxy
+sudo pip install pyserial
+
+# for video
+sudo apt-get install gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools libgstreamer1.0-dev libgstreamer1.0-0-dbg libgstreamer1.0-0 gstreamer1.0-omx libgstreamer-plugins-base1.0-dev gtk-doc-tools
+
+git clone https://github.com/thaytan/gst-rpicamsrc.git
+cd ~/Desktop/gst-rpicamsrc
+chmod +777 autogen.sh
+./autogen.sh
+make
+sudo make install
+
+git clone https://github.com/GStreamer/gst-rtsp-server.git
+cd ~/Desktop/gst-rtsp-server
+git checkout 1.12
+chmod +777 autogen.sh
+./autogen.sh
+make
+sudo make install
+
+./test-launch "( rpicamsrc preview=false bitrate=2000000 keyframe-interval=15 ! video/x-h264, width=1280, height=720, framerate=30/1 ! h264parse ! rtph264pay name=pay0 pt=96 )"
+
+# checking in gcs
+gst-launch-1.0 rtspsrc location=rtsp://192.168.2.50:8554/test latency=20 ! rtph264depay ! h264parse ! mfxh264dec ! videoconvert ! autovideosink sync=false
+
+# for audio
+/usr/bin/gst-launch-1.0 udpsrc port=5000 ! application/x-rtp, format=F32LE, media=audio, clock-rate=44100, encoding-name=L24, encoding-params=2, channels=2, payload=96 ! rtpL24depay ! audioconvert ! alsasink sync=false
+
+gst-launch-1.0 -v directsoundsrc ! audioconvert ! rtpL24pay ! udpsink host=192.168.168.168 port=5000
+
+
+# GPIO pin access in python using pigpio
+1. Intall pigpio using tar file in pib folder
+2. sudo pigpiod
+
+# OpenCV Installation
+1. Install GStreamer.
+cmake -D CMAKE_BUILD_TYPE=RELEASE \
+    -D CMAKE_INSTALL_PREFIX=/usr/local \
+    -D OPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules \
+    -D ENABLE_NEON=ON \
+    -D ENABLE_VFPV3=ON \
+    -D BUILD_TESTS=OFF \
+    -D INSTALL_PYTHON_EXAMPLES=OFF \
+    -D BUILD_EXAMPLES=OFF ../opencv

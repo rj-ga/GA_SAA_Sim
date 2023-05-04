@@ -1,0 +1,18 @@
+Change of Points in mission, restart the whole coordinate_transform
+try-exept below error
+check thread format
+Matrices for obstacles
+List vs Matrix for map generation and Noise elimination
+mavlink freqwuncy multiple 
+
+
+check transformaitons
+check gazebo axis roientaiton
+change lidar codde
+
+
+1) Compute the start point for obstacle avoidance guided triggerer
+2) Compute Previous waypoint
+3) Navigation part to stop at the nearest point of the obstacle
+4) Compute the right waypoint and head there
+5) See forward continuously, there is space before that way point then move ahead.
